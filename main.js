@@ -133,11 +133,28 @@ function renderFrame(index) {
   }
 }
 
+let lastCanvasWidth = 0;
+let lastCanvasHeight = 0;
+
 // Resize canvas to match display size & device pixel ratio
 function resizeCanvas() {
+  const currentWidth = window.innerWidth;
+  const currentHeight = window.innerHeight;
+
+  // Prevent canvas resize stutter during mobile scroll when address bar toggles
+  const isWidthChanged = Math.abs(currentWidth - lastCanvasWidth) > 2;
+  const isHeightMajorChange = Math.abs(currentHeight - lastCanvasHeight) > 150;
+
+  if (lastCanvasWidth !== 0 && !isWidthChanged && !isHeightMajorChange) {
+    return;
+  }
+
+  lastCanvasWidth = currentWidth;
+  lastCanvasHeight = currentHeight;
+
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(window.innerWidth * dpr);
-  canvas.height = Math.round(window.innerHeight * dpr);
+  canvas.width = Math.round(currentWidth * dpr);
+  canvas.height = Math.round(currentHeight * dpr);
   lastRenderedIndex = -1; // Force repaint
   const frame = Math.round(currentProgress * (TOTAL_FRAMES - 1));
   renderFrame(frame);
@@ -864,15 +881,16 @@ function setupCoverFlowPlayer() {
 
   // Update 3D Cover Flow layout according to activeIndex
   function updateCarousel(instant = false) {
+    const isSmallMobile = window.innerWidth < 400;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth < 1024;
 
-    const xOffset1 = isMobile ? 120 : isTablet ? 170 : 210;
-    const xOffset2 = isMobile ? 220 : isTablet ? 320 : 400;
-    const zOffset1 = isMobile ? -60 : -80;
-    const zOffset2 = isMobile ? -120 : -160;
-    const rot1 = isMobile ? 20 : 26;
-    const rot2 = isMobile ? 32 : 40;
+    const xOffset1 = isSmallMobile ? 95 : isMobile ? 120 : isTablet ? 170 : 210;
+    const xOffset2 = isSmallMobile ? 180 : isMobile ? 220 : isTablet ? 320 : 400;
+    const zOffset1 = isSmallMobile ? -50 : isMobile ? -60 : -80;
+    const zOffset2 = isSmallMobile ? -100 : isMobile ? -120 : -160;
+    const rot1 = isSmallMobile ? 16 : isMobile ? 20 : 26;
+    const rot2 = isSmallMobile ? 26 : isMobile ? 32 : 40;
 
     cards.forEach((card, idx) => {
       const diff = idx - activeIndex;
@@ -2580,15 +2598,16 @@ function setupHeadTalkingPlayer() {
 
   // 3D Cover Flow layout calculation
   function updateCarousel(instant = false) {
+    const isSmallMobile = window.innerWidth < 400;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth < 1024;
 
-    const xOffset1 = isMobile ? 120 : isTablet ? 170 : 210;
-    const xOffset2 = isMobile ? 220 : isTablet ? 320 : 400;
-    const zOffset1 = isMobile ? -60 : -80;
-    const zOffset2 = isMobile ? -120 : -160;
-    const rot1 = isMobile ? 20 : 26;
-    const rot2 = isMobile ? 32 : 40;
+    const xOffset1 = isSmallMobile ? 95 : isMobile ? 120 : isTablet ? 170 : 210;
+    const xOffset2 = isSmallMobile ? 180 : isMobile ? 220 : isTablet ? 320 : 400;
+    const zOffset1 = isSmallMobile ? -50 : isMobile ? -60 : -80;
+    const zOffset2 = isSmallMobile ? -100 : isMobile ? -120 : -160;
+    const rot1 = isSmallMobile ? 16 : isMobile ? 20 : 26;
+    const rot2 = isSmallMobile ? 26 : isMobile ? 32 : 40;
 
     cards.forEach((card, idx) => {
       const diff = idx - activeIndex;
@@ -3780,15 +3799,16 @@ function setupPhonkCoverFlowPlayer() {
 
   // 3D Cover Flow layout calculation
   function updateCarousel(instant = false) {
+    const isSmallMobile = window.innerWidth < 400;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth < 1024;
 
-    const xOffset1 = isMobile ? 120 : isTablet ? 170 : 210;
-    const xOffset2 = isMobile ? 220 : isTablet ? 320 : 400;
-    const zOffset1 = isMobile ? -60 : -80;
-    const zOffset2 = isMobile ? -120 : -160;
-    const rot1 = isMobile ? 20 : 26;
-    const rot2 = isMobile ? 32 : 40;
+    const xOffset1 = isSmallMobile ? 95 : isMobile ? 120 : isTablet ? 170 : 210;
+    const xOffset2 = isSmallMobile ? 180 : isMobile ? 220 : isTablet ? 320 : 400;
+    const zOffset1 = isSmallMobile ? -50 : isMobile ? -60 : -80;
+    const zOffset2 = isSmallMobile ? -100 : isMobile ? -120 : -160;
+    const rot1 = isSmallMobile ? 16 : isMobile ? 20 : 26;
+    const rot2 = isSmallMobile ? 26 : isMobile ? 32 : 40;
 
     cards.forEach((card, idx) => {
       const diff = idx - activeIndex;
@@ -4981,15 +5001,16 @@ function setupRealEstatePlayer() {
 
   // 3D Cover Flow layout calculation
   function updateCarousel(instant = false) {
+    const isSmallMobile = window.innerWidth < 400;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth < 1024;
 
-    const xOffset1 = isMobile ? 120 : isTablet ? 170 : 210;
-    const xOffset2 = isMobile ? 220 : isTablet ? 320 : 400;
-    const zOffset1 = isMobile ? -60 : -80;
-    const zOffset2 = isMobile ? -120 : -160;
-    const rot1 = isMobile ? 20 : 26;
-    const rot2 = isMobile ? 32 : 40;
+    const xOffset1 = isSmallMobile ? 95 : isMobile ? 120 : isTablet ? 170 : 210;
+    const xOffset2 = isSmallMobile ? 180 : isMobile ? 220 : isTablet ? 320 : 400;
+    const zOffset1 = isSmallMobile ? -50 : isMobile ? -60 : -80;
+    const zOffset2 = isSmallMobile ? -100 : isMobile ? -120 : -160;
+    const rot1 = isSmallMobile ? 16 : isMobile ? 20 : 26;
+    const rot2 = isSmallMobile ? 26 : isMobile ? 32 : 40;
 
     cards.forEach((card, idx) => {
       const diff = idx - activeIndex;
@@ -6169,15 +6190,16 @@ function setupCinematicPlayer() {
 
   // 3D Cover Flow layout calculation
   function updateCarousel(instant = false) {
+    const isSmallMobile = window.innerWidth < 400;
     const isMobile = window.innerWidth < 640;
     const isTablet = window.innerWidth < 1024;
 
-    const xOffset1 = isMobile ? 120 : isTablet ? 170 : 210;
-    const xOffset2 = isMobile ? 220 : isTablet ? 320 : 400;
-    const zOffset1 = isMobile ? -60 : -80;
-    const zOffset2 = isMobile ? -120 : -160;
-    const rot1 = isMobile ? 20 : 26;
-    const rot2 = isMobile ? 32 : 40;
+    const xOffset1 = isSmallMobile ? 95 : isMobile ? 120 : isTablet ? 170 : 210;
+    const xOffset2 = isSmallMobile ? 180 : isMobile ? 220 : isTablet ? 320 : 400;
+    const zOffset1 = isSmallMobile ? -50 : isMobile ? -60 : -80;
+    const zOffset2 = isSmallMobile ? -100 : isMobile ? -120 : -160;
+    const rot1 = isSmallMobile ? 16 : isMobile ? 20 : 26;
+    const rot2 = isSmallMobile ? 26 : isMobile ? 32 : 40;
 
     cards.forEach((card, idx) => {
       const diff = idx - activeIndex;
