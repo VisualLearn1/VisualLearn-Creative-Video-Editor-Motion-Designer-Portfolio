@@ -1,0 +1,21 @@
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# Temporary & debug files
+scratch/
+debug_check.html
+debug_check.js
+capture_views.js
+make_static.js
+test_*.html
+shot_*.png
+hash_*.png
+info_dump.txt
+
+# Node
+node_modules/
+npm-debug.log*
