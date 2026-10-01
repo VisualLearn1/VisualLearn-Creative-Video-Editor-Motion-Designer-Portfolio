@@ -104,7 +104,7 @@ function drawCover(img) {
   const dy = Math.round((ch - dh) / 2);
 
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
+  ctx.imageSmoothingQuality = 'medium';
   ctx.drawImage(img, dx, dy, dw, dh);
 }
 
@@ -135,44 +135,64 @@ function renderFrame(index) {
 
 let lastCanvasWidth = 0;
 let lastCanvasHeight = 0;
+let cachedMaxScroll = 1000;
+let cachedSectionOffsets = [];
 
-// Resize canvas to match display size & device pixel ratio
-function resizeCanvas() {
+// Recalculate layout metrics (only on resize/orientation change)
+function updateLayoutMetrics() {
   const currentWidth = window.innerWidth;
   const currentHeight = window.innerHeight;
 
-  // Prevent canvas resize stutter during mobile scroll when address bar toggles
-  const isWidthChanged = Math.abs(currentWidth - lastCanvasWidth) > 2;
-  const isHeightMajorChange = Math.abs(currentHeight - lastCanvasHeight) > 150;
+  // Cap canvas buffer to native image source resolution (1920x1080)
+  // On mobile / laptops, cap DPR to avoid rendering millions of unneeded pixels
+  const isMobile = currentWidth < 768;
+  const maxDpr = isMobile ? 1 : 1.5;
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
 
-  if (lastCanvasWidth !== 0 && !isWidthChanged && !isHeightMajorChange) {
-    return;
+  const targetWidth = Math.min(1920, Math.round(currentWidth * dpr));
+  const targetHeight = Math.min(1080, Math.round(currentHeight * dpr));
+
+  const isWidthChanged = Math.abs(currentWidth - lastCanvasWidth) > 4;
+  const isHeightMajorChange = Math.abs(currentHeight - lastCanvasHeight) > 120;
+
+  if (lastCanvasWidth === 0 || isWidthChanged || isHeightMajorChange) {
+    lastCanvasWidth = currentWidth;
+    lastCanvasHeight = currentHeight;
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+    lastRenderedIndex = -1; // Force repaint
+    const frame = Math.round(currentProgress * (TOTAL_FRAMES - 1));
+    renderFrame(frame);
   }
 
-  lastCanvasWidth = currentWidth;
-  lastCanvasHeight = currentHeight;
-
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  canvas.width = Math.round(currentWidth * dpr);
-  canvas.height = Math.round(currentHeight * dpr);
-  lastRenderedIndex = -1; // Force repaint
-  const frame = Math.round(currentProgress * (TOTAL_FRAMES - 1));
-  renderFrame(frame);
-}
-
-window.addEventListener('resize', resizeCanvas);
-
-// Calculate maximum scroll distance
-function getMaxScroll() {
+  // Cache max scroll distance (zero DOM queries during scroll!)
   const docHeight = document.documentElement ? document.documentElement.scrollHeight : (document.body ? document.body.scrollHeight : 1000);
-  return Math.max(1, docHeight - window.innerHeight);
+  cachedMaxScroll = Math.max(1, docHeight - currentHeight);
+
+  // Cache section top offsets (prevents expensive layout reflows during scroll!)
+  const sections = ['hero', 'about', 'projects', 'contact'];
+  cachedSectionOffsets = sections.map((id) => {
+    const el = document.getElementById(id);
+    return { id, top: el ? el.offsetTop : 0 };
+  });
 }
+
+function resizeCanvas() {
+  updateLayoutMetrics();
+}
+
+window.addEventListener('resize', resizeCanvas, { passive: true });
+
+// Cached DOM references for nav links
+let desktopNavLinks = null;
+let mobileNavLinks = null;
+let lastActiveSection = '';
+let isCanvasAnimating = false;
 
 // Update target frame and UI based on current scroll position
 function updateScrollProgress() {
   const scrollTop = window.scrollY || window.pageYOffset || (document.documentElement ? document.documentElement.scrollTop : 0) || 0;
-  const maxScroll = getMaxScroll();
-  targetProgress = Math.max(0, Math.min(1, scrollTop / maxScroll));
+  targetProgress = Math.max(0, Math.min(1, scrollTop / (cachedMaxScroll || 1000)));
 
   // Update reading progress bar
   const progressBar = document.getElementById('scroll-progress-bar');
@@ -180,65 +200,67 @@ function updateScrollProgress() {
     progressBar.style.width = (targetProgress * 100).toFixed(2) + '%';
   }
 
-  // Update Active Navigation Item
-  updateActiveNavLink(scrollTop);
+  // Update Active Navigation Item (using cached offsets - NO reflows!)
+  updateActiveNavLinkFast(scrollTop);
+
+  // Wake up canvas animation loop if idle
+  startCanvasAnimation();
 }
 
 window.addEventListener('scroll', updateScrollProgress, { passive: true });
 
-// Determine which section is currently in view and update nav links
-function updateActiveNavLink(scrollTop) {
-  const sections = ['hero', 'about', 'projects', 'contact'];
-  const offset = 220; // Trigger threshold
+// Fast section spy using pre-cached offsets (zero layout thrashing!)
+function updateActiveNavLinkFast(scrollTop) {
+  const offset = 220;
   let currentSection = 'hero';
 
-  for (let i = sections.length - 1; i >= 0; i--) {
-    const el = document.getElementById(sections[i]);
-    if (el) {
-      const top = el.offsetTop - offset;
-      if (scrollTop >= top) {
-        currentSection = sections[i];
-        break;
-      }
+  for (let i = cachedSectionOffsets.length - 1; i >= 0; i--) {
+    if (scrollTop >= (cachedSectionOffsets[i].top - offset)) {
+      currentSection = cachedSectionOffsets[i].id;
+      break;
     }
   }
 
-  // Update desktop nav links
-  document.querySelectorAll('.nav-link').forEach((link) => {
+  if (currentSection === lastActiveSection) return;
+  lastActiveSection = currentSection;
+
+  if (!desktopNavLinks) desktopNavLinks = document.querySelectorAll('.nav-link');
+  if (!mobileNavLinks) mobileNavLinks = document.querySelectorAll('.mobile-nav-link');
+
+  desktopNavLinks.forEach((link) => {
     const href = link.getAttribute('href');
     const isMatch = href === `#${currentSection}` || (currentSection === 'hero' && (href === '#Vlearn' || href === '#hero'));
-    if (isMatch) {
-      link.classList.add('active');
-    } else {
-      link.classList.remove('active');
-    }
+    link.classList.toggle('active', isMatch);
   });
 
-  // Update mobile nav links
-  document.querySelectorAll('.mobile-nav-link').forEach((link) => {
+  mobileNavLinks.forEach((link) => {
     const href = link.getAttribute('href');
     const isMatch = href === `#${currentSection}` || (currentSection === 'hero' && (href === '#Vlearn' || href === '#hero'));
-    if (isMatch) {
-      link.classList.add('active');
-    } else {
-      link.classList.remove('active');
-    }
+    link.classList.toggle('active', isMatch);
   });
 }
 
-// Main Animation Loop with physics dampening (Lerp)
+function startCanvasAnimation() {
+  if (!isCanvasAnimating) {
+    isCanvasAnimating = true;
+    requestAnimationFrame(animate);
+  }
+}
+
+// Main Animation Loop with physics dampening (Lerp) - RUNS ON-DEMAND ONLY!
 function animate() {
   const diff = targetProgress - currentProgress;
-  if (Math.abs(diff) > 0.0001) {
-    currentProgress += diff * 0.12;
+  if (Math.abs(diff) > 0.0005) {
+    currentProgress += diff * 0.16;
+    const frameToRender = Math.round(currentProgress * (TOTAL_FRAMES - 1));
+    renderFrame(frameToRender);
+    requestAnimationFrame(animate);
   } else {
     currentProgress = targetProgress;
+    const frameToRender = Math.round(currentProgress * (TOTAL_FRAMES - 1));
+    renderFrame(frameToRender);
+    isCanvasAnimating = false; // STOP LOOP WHEN IDLE! 0% CPU & GPU!
   }
-
-  const frameToRender = Math.round(currentProgress * (TOTAL_FRAMES - 1));
-  renderFrame(frameToRender);
-
-  requestAnimationFrame(animate);
 }
 
 // Preload image frames progressively with priority tiering
@@ -249,6 +271,7 @@ function preloadImages() {
       return;
     }
     const img = new Image();
+    img.decoding = 'async'; // Asynchronous image decoding off the main UI thread
     img.src = getFramePath(i);
     images[i] = img;
 
@@ -268,7 +291,6 @@ function preloadImages() {
     } else {
       img.onload = onLoaded;
       img.onerror = () => {
-        // Fallback: If not found in subfolder, automatically try flat images/ folder
         const num = String(i + 1).padStart(3, '0');
         const fallbackSrc = `images/ezgif-frame-${num}.jpg`;
         if (img.src !== fallbackSrc && !img.dataset.fallbackTried) {
@@ -281,36 +303,39 @@ function preloadImages() {
     }
   }
 
-  // Tier 1: Priority initial frames (0 to 12) for immediate crisp view
-  for (let i = 0; i <= 12; i++) {
+  // Tier 1: Priority initial frames (0 to 8) for immediate crisp view
+  for (let i = 0; i <= 8; i++) {
     loadSingleFrame(i);
   }
 
-  // Tier 2: Key intervals across the timeline (every 4th frame)
+  // Tier 2: Key milestone intervals (every 6th frame)
   setTimeout(() => {
-    for (let i = 13; i < TOTAL_FRAMES; i += 4) {
+    for (let i = 9; i < TOTAL_FRAMES; i += 6) {
       loadSingleFrame(i);
     }
-  }, 100);
+  }, 200);
 
-  // Tier 3: Load remaining frames in progressive batches
+  // Tier 3: Load remaining frames progressively during idle time
+  const scheduleIdle = window.requestIdleCallback || ((cb) => setTimeout(cb, 80));
   setTimeout(() => {
     let index = 0;
     function loadBatch() {
-      let count = 0;
-      while (index < TOTAL_FRAMES && count < 8) {
-        if (!loaded[index]) {
-          loadSingleFrame(index);
-          count++;
+      scheduleIdle((deadline) => {
+        let count = 0;
+        while (index < TOTAL_FRAMES && count < 6 && (!deadline || deadline.timeRemaining() > 5)) {
+          if (!loaded[index]) {
+            loadSingleFrame(index);
+            count++;
+          }
+          index++;
         }
-        index++;
-      }
-      if (index < TOTAL_FRAMES) {
-        setTimeout(loadBatch, 30);
-      }
+        if (index < TOTAL_FRAMES) {
+          setTimeout(loadBatch, 50);
+        }
+      });
     }
     loadBatch();
-  }, 300);
+  }, 600);
 }
 
 // ============================================================================
@@ -7164,8 +7189,8 @@ function init() {
   setupRealEstatePlayer();
   setupCinematicPlayer();
   updateScrollProgress();
-  updateActiveNavLink(0);
-  requestAnimationFrame(animate);
+  updateActiveNavLinkFast(0);
+  startCanvasAnimation();
 }
 
 // Extra guarantee on window load (after all media/fonts are settled)
